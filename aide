@@ -1,0 +1,88 @@
+import subprocess
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.label import Label
+
+# Fonction pour exécuter une commande ADB (Android Debug Bridge)
+def run_adb_command(command):
+    process = subprocess.Popen(command, stdout=subprocess.PIPE)
+    output, error = process.communicate()
+    return output.decode().strip()
+
+class TabletteInfo(App):
+    def build(self):
+        layout = BoxLayout(orientation='vertical', spacing=20)
+        
+        # Création des étiquettes pour afficher les caractéristiques
+        model_label = Label(text="Modèle : ")
+        android_version_label = Label(text="Version Android : ")
+        build_number_label = Label(text="Numéro de version de la construction : ")
+        ram_label = Label(text="RAM : ")
+        battery_label = Label(text="Capacité de la batterie : ")
+        imei_label = Label(text="IMEI : ")
+        stockage_label = Label(text="Stockage interne : ")
+        bluetooth_label = Label(text="Nom du Bluetooth : ")
+        frequency_label = Label(text="Fréquence du CPU en cours: ")
+        frequence_label = Label(text="Fréquence du CPU : ")
+        
+        # Récupération des informations de la tablette
+        model = run_adb_command(['adb', 'shell', 'getprop', 'ro.product.model'])
+        model_label.text += model
+        
+        android_version = run_adb_command(['adb', 'shell', 'getprop', 'ro.build.version.release'])
+        android_version_label.text += android_version
+        
+        build_number = run_adb_command(['adb', 'shell', 'getprop', 'ro.build.display.id'])
+        build_number_label.text += build_number
+        
+        ram = run_adb_command(['adb', 'shell', 'cat', '/proc/meminfo', '|', 'grep', 'MemTotal'])
+        ram = int(ram.split(':')[1].strip().split()[0]) / 1024 / 1024  # Convertir en GB
+        ram_label.text += "{:.2f} GB".format(ram)
+
+        battery_capacity = run_adb_command(['adb', 'shell', 'dumpsys', 'battery'])
+        battery_capacity = battery_capacity.split('\n')
+        for line in battery_capacity:
+            if 'level' in line:
+                battery_capacity = line.split(':')[1].strip()
+                break
+        else:
+            battery_capacity = 'Non disponible'
+        battery_label.text += "{} %".format(battery_capacity)
+        
+        imei = run_adb_command(['adb', 'shell', 'service', 'call', 'iphonesubinfo', '1'])
+        imei = imei.split("'")[1].strip()
+        imei_label.text += imei
+        
+        stockage = run_adb_command(['adb', 'shell', 'df', '/data'])
+        stockage = int(stockage.split('\n')[1].split()[1]) / (1024 * 1024)  # Convertir en GB
+        stockage_label.text += "{:.2f} GB".format(stockage)
+        
+        bluetooth_model = run_adb_command(['adb', 'shell', 'settings', 'get', 'secure', 'bluetooth_name'])
+        bluetooth_label.text += bluetooth_model
+        
+        # Récupération de la fréquence du CPU en cours d'utilisation lors de la compilation
+        result = run_adb_command(['adb', 'shell', 'cat', '/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq'])
+        frequency = int(result) / 1000000  # Convertir en GHz
+        frequency_label.text += "{:.2f} GHz".format(frequency)
+           
+
+        # Récupération de la fréquence maximale du CPU
+        result = run_adb_command(['adb', 'shell', 'cat', '/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq'])
+        frequence = int(result) / 1000000  # Convertir en GHz
+        frequence_label.text += "{:.2f} GHz".format(frequence)
+        
+        # Ajout des étiquettes au affichage
+        layout.add_widget(model_label)
+        layout.add_widget(android_version_label)
+        layout.add_widget(build_number_label)
+        layout.add_widget(ram_label)
+        layout.add_widget(battery_label)
+        layout.add_widget(imei_label)
+        layout.add_widget(stockage_label)
+        layout.add_widget(bluetooth_label)
+        layout.add_widget(frequence_label)
+        layout.add_widget(frequency_label)
+
+        return layout
+
+TabletteInfo().run()
